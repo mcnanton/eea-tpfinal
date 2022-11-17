@@ -39,3 +39,6 @@ table(val_data$AS)
 # 0    1 
 # 2803   14 
 
+write.csv(test_data, "datasets/test_data.csv")
+write.csv(train_data, "datasets/train_data.csv")
+write.csv(val_data, "datasets/val_data.csv")
