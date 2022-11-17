@@ -3,8 +3,7 @@
 .Rapp.history
 
 # datasets - all
-/*.csv
-/*.txt
+datasets/
 
 # Session Data files
 .RData
