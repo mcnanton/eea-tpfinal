@@ -41,4 +41,6 @@ table(val_data$AS)
 
 write.csv(test_data, "datasets/test_data.csv")
 write.csv(train_data, "datasets/train_data.csv")
+write.csv(train_data_total, "datasets/training_data.csv")
 write.csv(val_data, "datasets/val_data.csv")
+
