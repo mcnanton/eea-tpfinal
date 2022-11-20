@@ -24,15 +24,16 @@ preprocesamiento <-
 
 #lgbm via {bonsai}
 # https://github.com/tidymodels/bonsai
+# https://bonsai.tidymodels.org/articles/bonsai.html
 dt_mod <- 
   boost_tree(
     trees = 100, 
     learn_rate = 0.05,
     tree_depth = tune(), 
-    min_n = tune(),
-    loss_reduction = tune(), 
+    min_n = 300,
+    loss_reduction = 0, 
     mtry = tune()
-  ) %>%
+    ) %>%
   set_engine(engine = "lightgbm") %>%
   set_mode(mode = "classification") %>% 
   translate()
@@ -75,6 +76,6 @@ lgbm_bo <-
     initial = 5,
     iter = 25,
     # How to measure performance?
-    metrics = metric_set(roc_auc),
+    metrics = metric_set(f_meas),
     control = control_bayes(no_improve = 30, verbose = TRUE)
   )
