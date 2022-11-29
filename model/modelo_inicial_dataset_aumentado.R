@@ -9,8 +9,6 @@ tidymodels_prefer()
 
 set.seed(1234)
 
-########### OBJETIVO: PREDECIR VARIABLE AS ########### 
-
 # Levantamos particiones
 dataset <- read.delim("datasets/WT_red_as_kmer_all.txt",
                       sep = ",") %>% 
@@ -18,9 +16,8 @@ dataset <- read.delim("datasets/WT_red_as_kmer_all.txt",
 
 dataset_split <- initial_split(dataset, prop = 0.80, strata = AS)
 train_data_total <- training(dataset_split) #Partición 80%, no extraemos validación porque vamos a hacer cross-validation
+test_data <- testing(dataset_split)
 
-
-# Tenemos un desbalanceo fuerte
 # Biblioteca para lidiar con desbalanceos https://www.tidyverse.org/blog/2020/02/themis-0-1-0/
 # Un ejemplo del workflow con step_downsample https://www.r-bloggers.com/2020/05/bayesian-hyperparameters-optimization/
 # https://recipes.tidymodels.org/reference/step_downsample.html
@@ -28,8 +25,9 @@ train_data_total <- training(dataset_split) #Partición 80%, no extraemos valida
 
 train_data_formula <-
   recipe(AS ~ ., data = train_data_total) %>%
-  step_downsample(AS, under_ratio = 5)
-#step_mutate(AS = factor(AS)) #esto puede reemplazar a los mutate de cada read.csv
+  step_downsample(AS, 
+                  under_ratio = 2,
+                  seed = 42)
 
 #lgbm via {bonsai}
 # https://github.com/tidymodels/bonsai
@@ -66,7 +64,7 @@ lgbm_wflow_tuning %>% extract_parameter_dials("mtry") # mtry depende directament
 folds <- vfold_cv(train_data_total, v = 5, strata = AS)
 # Ejemplo de undersampling con CV https://www.tidymodels.org/learn/models/sub-sampling/
 # En este ejemplo el df es el dataset de entrenamiento
-# NO ESTOY SEGURA DE QUE ESTO ESTÉ FUNCIONANDO BIEN (que la CV sea sobre el dataset undersampleado)
+
 
 # Param search ----
 # https://www.tidymodels.org/learn/work/bayes-opt/
@@ -76,12 +74,12 @@ ctrl <- control_bayes(verbose = TRUE)
 lgbm_bo <- 
   lgbm_wflow %>% 
   tune_bayes(
-    resamples = folds, # Se tunea con validación cruzada # NO ESTOY SEGURA DE QUE ESTO ESTÉ FUNCIONANDO BIEN (que la CV sea sobre el dataset undersampleado)!!!
+    resamples = folds, # Se tunea con validación cruzada 
     # To use non-default parameter ranges
     param_info = lgbm_wflow_tuning,
     # Generate five at semi-random to start
-    initial = 5, #It is suggested that the number of initial results be greater than the number of parameters being optimized
-    iter = 15,
+    initial = 10, #It is suggested that the number of initial results be greater than the number of parameters being optimized
+    iter = 20,
     # How to measure performance?
     metrics = metric_set(pr_auc),
     control = ctrl
@@ -90,14 +88,52 @@ lgbm_bo <-
 # Modelo con mejores parámetros de BO
 show_best(lgbm_bo)
 
-#Mejores hiperparámetros optimizando por PR_AUC
+#Mejores hiperparámetros optimizando por RECALL, under_ratio = 1 seed 42 downsample
+# mtry min_n tree_depth learn_rate .metric .estimator  mean     n std_err .config               .iter
+# <int> <int>      <int>      <dbl> <chr>   <chr>      <dbl> <int>   <dbl> <chr>                 <int>
+#   1    39    28         11    0.0904  recall  binary     0.732     5  0.0137 Iter6                     6
+# 2   266    29          9    0.00437 recall  binary     0.717     5  0.0257 Preprocessor1_Model02     0
+# 3   681     3          6    0.00377 recall  binary     0.716     5  0.0251 Iter11                   11
+# 4   357     2         10    0.0555  recall  binary     0.713     5  0.0126 Iter3                     3
+# 5  1134    20          7    0.0875  recall  binary     0.711     5  0.0208 Iter13                   13
+
+#Mejores hiperparámetros optimizando por RECALL, under_ratio = 2 seed 42 downsample
+# mtry min_n tree_depth learn_rate .metric .estimator  mean     n std_err .config .iter
+# <int> <int>      <int>      <dbl> <chr>   <chr>      <dbl> <int>   <dbl> <chr>   <int>
+#   1  3848    27          2     0.0892 recall  binary     0.359     5  0.0268 Iter16     16
+# 2   548    17          3     0.0520 recall  binary     0.344     5  0.0223 Iter20     20
+# 3  3865     5          4     0.0980 recall  binary     0.342     5  0.0251 Iter15     15
+# 4  2636    38          5     0.0824 recall  binary     0.335     5  0.0164 Iter19     19
+
+#Mejores hiperparámetros optimizando por RECALL, under_ratio = 15 seed 42 downsample
+# mtry min_n tree_depth learn_rate .metric .estimator    mean     n std_err .config               .iter
+# <int> <int>      <int>      <dbl> <chr>   <chr>        <dbl> <int>   <dbl> <chr>                 <int>
+#   1  4093    13          5     0.0616 recall  binary     0.00697     5 0.00239 Iter18                   18
+# 2  4079    26          8     0.0661 recall  binary     0.00566     5 0.00277 Iter8                     8
+# 3  3935    22          6     0.0734 recall  binary     0.00547     5 0.00138 Iter16                   16
+# 4  4053     3          3     0.0814 recall  binary     0.00542     5 0.00247 Iter6                     6
+# 5  3862    24         14     0.0496 recall  binary     0.00415     5 0.00170 Preprocessor1_Model01     0
+
+
+#Mejores hiperparámetros optimizando por PR_AUC, under_ratio = 2
+# mtry min_n tree_depth  learn_rate .metric .estimator  mean     n std_err .config .iter
+# <int> <int>      <int>       <dbl> <chr>   <chr>      <dbl> <int>   <dbl> <chr>   <int>
+#   1  3874    36          1 0.00000242  pr_auc  binary     0.319     5  0.0185 Iter14     14
+# 2  4030    40          1 0.000000847 pr_auc  binary     0.319     5  0.0185 Iter17     17
+# 3  3997    39          1 0.000000166 pr_auc  binary     0.303     5  0.0255 Iter18     18
+# 4  3812    38          1 0.00000874  pr_auc  binary     0.282     5  0.0216 Iter20     20
+# 5  3604    27          1 0.00000208  pr_auc  binary     0.257     5  0.0133 Iter13     13
+
+#Mejores hiperparámetros optimizando por PR_AUC, under_ratio = 15
 # mtry min_n tree_depth   learn_rate .metric .estimator  mean     n std_err .config .iter
 # <int> <int>      <int>        <dbl> <chr>   <chr>      <dbl> <int>   <dbl> <chr>   <int>
-#   1  4046    21          1 0.000000295  pr_auc  binary     0.248     5  0.0197 Iter8       8
-# 2  4035    26          1 0.000000210  pr_auc  binary     0.248     5  0.0197 Iter13     13
-# 3  4053    20          1 0.0000000626 pr_auc  binary     0.248     5  0.0197 Iter14     14
-# 4  4066    23          1 0.00000294   pr_auc  binary     0.241     5  0.0212 Iter15     15
-# 5  3920    22          1 0.00000251   pr_auc  binary     0.230     5  0.0130 Iter6       6
+# mtry min_n tree_depth learn_rate .metric .estimator   mean     n std_err .config               .iter
+# <int> <int>      <int>      <dbl> <chr>   <chr>       <dbl> <int>   <dbl> <chr>                 <int>
+#   1   789    40         11    0.0160  pr_auc  binary     0.0793     5 0.00721 Iter7                     7
+# 2   615    37         11    0.00970 pr_auc  binary     0.0789     5 0.00865 Iter15                   15
+# 3   891    25         10    0.0119  pr_auc  binary     0.0761     5 0.00605 Iter17                   17
+# 4   266    29          9    0.00437 pr_auc  binary     0.0757     5 0.00536 Preprocessor1_Model02     0
+# 5   838    40         14    0.00799 pr_auc  binary     0.0745     5 0.00462 Iter8                     8
 
 
 autoplot(lgbm_bo, type = "performance")
@@ -107,18 +143,40 @@ best_params <-
   select_best(metric = "pr_auc")
 
 best_params
-# mtry min_n tree_depth  learn_rate .config
-# <int> <int>      <int>       <dbl> <chr>  
-#   1  4046    21          1 0.000000295 Iter8  
+
+#Optimizando por recall, undersampling 1
+# mtry min_n tree_depth learn_rate .config
+# <int> <int>      <int>      <dbl> <chr>  
+#   1    39    28         11     0.0904 Iter6 
+
+#Optimizando por recall, undersampling 2
+# mtry min_n tree_depth learn_rate .config
+# <int> <int>      <int>      <dbl> <chr>  
+#   1  3848    27          2     0.0892 Iter16 
+
+#Optimizando por recall, undersampling 15
+# mtry min_n tree_depth learn_rate .config
+# <int> <int>      <int>      <dbl> <chr>  
+#   1  4093    13          5     0.0616 Iter18 
+
+#Optimizando por pr_auc, undersampling 2
+# mtry min_n tree_depth learn_rate .config
+# <int> <int>      <int>      <dbl> <chr>  
+#   1  3874    36          1 0.00000242 Iter14 
+
+#Optimizando por pr_auc
+# mtry min_n tree_depth learn_rate .config
+# <int> <int>      <int>      <dbl> <chr>  
+#   1   789    40         11     0.0160 Iter7  
 
 lgbm_final <- 
   boost_tree(
     trees = 300, 
-    learn_rate = 0.000000295, #best_params$learn_rate,
-    tree_depth = 1, #best_params$tree_depth, 
-    min_n = 21, #best_params$min_n,
+    learn_rate = best_params$learn_rate,
+    tree_depth = best_params$tree_depth, 
+    min_n = best_params$min_n,
     loss_reduction = 0, 
-    mtry = 4046 #best_params$mtry
+    mtry = best_params$mtry
   ) %>%
   set_engine(engine = "lightgbm") %>%
   set_mode(mode = "classification") %>% 
@@ -131,26 +189,60 @@ full_dataset <-
   recipe(AS ~ ., 
          data = dataset)
 
-testing <- last_fit(lgbm_final, full_dataset, split = dataset_split) #DANIEL avisame si ves ok esto. Por lo que veo aca entiendo que sí https://tune.tidymodels.org/reference/last_fit.html
+testing <- last_fit(lgbm_final, full_dataset, split = dataset_split) 
 
 testing %>% 
   collect_metrics()
 
-#Estas metricas son para una BO optimizada por PR_AUC
+
+#Estas metricas son para una BO optimizada por RECALL, us 1
 # .metric  .estimator .estimate .config             
 # <chr>    <chr>          <dbl> <chr>               
+#   1 accuracy binary         0.966 Preprocessor1_Model1
+# 2 roc_auc  binary         0.675 Preprocessor1_Model1
+
+#Estas metricas son para una BO optimizada por RECALL, us 2
+# .metric  .estimator .estimate .config             
+# <chr>    <chr>          <dbl> <chr>               
+#   1 accuracy binary         0.966 Preprocessor1_Model1
+# 2 roc_auc  binary         0.708 Preprocessor1_Model1
+
+#Estas metricas son para una BO optimizada por RECALL, us 15
+# .metric  .estimator .estimate .config             
+# <chr>    <chr>          <dbl> <chr>               
+#   1 accuracy binary         0.966 Preprocessor1_Model1
+# 2 roc_auc  binary         0.668 Preprocessor1_Model1
+
+
+#Estas metricas son para una BO optimizada por RECALL
 #   1 accuracy binary         0.969 Preprocessor1_Model1
 # 2 roc_auc  binary         0.642 Preprocessor1_Model1
+
+#Estas metricas son para una BO optimizada por PR_AUC, undersampling 2
+# .metric  .estimator .estimate .config             
+# <chr>    <chr>          <dbl> <chr>               
+#   1 accuracy binary         0.966 Preprocessor1_Model1
+# 2 roc_auc  binary         0.631 Preprocessor1_Model1
+
+#Estas metricas son para una BO optimizada por PR_AUC
+# 1 accuracy binary         0.966 Preprocessor1_Model1
+# 2 roc_auc  binary         0.705 Preprocessor1_Model1
 
 predicciones <- 
   testing %>% 
   collect_predictions() 
-# El modelo no esta teniendo sensibilidad a la clase 1, no predice ningun AS = 1
+# Optimizando por recall us1 levanta 1 AS 1 TP y otro FP
+# Optimizando por recall us2 levanta 2 AS 1 correctamente
+# Optimizando por recall us15 levanta 1 AS 1 TP y otro FP
+# Optimizando por recall levanta 2 AS 1 correctamente
+# Optimizando por pr_auc undersampling 2 levanta 0 AS 1
+
+# Optimizando por pr_auc levanta 0 AS 1
 
 # cm <- testing %>% #Esto no funciona
 #  conf_mat(obs, pred)
 
-autoplot(cm, type = "heatmap")
+#autoplot(cm, type = "heatmap")
 
 df_predicciones <- as.data.frame(testing$.predictions)
 
@@ -165,6 +257,31 @@ violin_plot
 
 # Importancia de variables enlatada
 
-# SHAP values en test
+# opc A
+testing %>%
+  extract_workflow() #%>%
+  # vip(geom = "point") + 
+  # labs(title = "Random forest variable importance") 
+
+# Opc B
+explainer_model <- 
+  explain_tidymodels(
+  last_fit, 
+  data = train_data_total, 
+  y = train_data_total$AS,
+  label = "feature importance?",
+  verbose = FALSE
+)
+
+# SHAP
 # https://community.rstudio.com/t/shap-values-with-tidymodels/147217
 # https://www.tmwr.org/explain.html
+
+# Opc B
+shap <- 
+  predict_parts(
+    explainer = explainer_model, 
+    new_observation = test_data, 
+    type = "shap",
+    B = 20
+  )
