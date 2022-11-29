@@ -12,7 +12,7 @@ set.seed(1234)
 # Levantamos particiones
 dataset <- read.delim("datasets/WT_red_as_kmer.txt",
                       sep = ",") %>% 
-  mutate(AS = as.factor(AS))
+  mutate(AS = as.factor(AS, levels=c('1','0')))
 
 # train_data_total = read.csv("datasets/training_data.csv") %>% 
 #   mutate(AS = as.factor(AS))
