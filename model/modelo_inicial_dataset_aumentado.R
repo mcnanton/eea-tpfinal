@@ -360,7 +360,7 @@ ggplot_imp <- function(...) {
          y = NULL,  fill = NULL,  color = NULL)
 }
 
-ggplot_imp(simple_explainer)
+ggplot_imp(simple_global_explainer)
 
 
 
