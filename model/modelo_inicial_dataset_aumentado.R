@@ -17,7 +17,7 @@ dataset <- read.delim("datasets/WT_red_as_kmer_all.txt",
 
 dataset_split <- initial_split(dataset, prop = 0.80, strata = AS)
 train_data_total <- training(dataset_split) #Partición 80%, no extraemos validación porque vamos a hacer cross-validation
-test_data <- testing(dataset_split)
+test_data <- testing(dataset_split) #%>% dplyr::mutate_all(as.factor)
 
 # Biblioteca para lidiar con desbalanceos https://www.tidyverse.org/blog/2020/02/themis-0-1-0/
 # Un ejemplo del workflow con step_downsample https://www.r-bloggers.com/2020/05/bayesian-hyperparameters-optimization/
@@ -320,7 +320,7 @@ simple_global_explainer <-
 # Pero veo mas de 3 levels en todas las variables
 simple_breakdown <- predict_parts(
   explainer = simple_explainer, 
-  new_observation = test_data[1,] %>%  select(-AS))
+  new_observation = test_data[12,] %>%  select(-AS))
 
 # Función tomada de https://www.tmwr.org/explain.html
 ggplot_imp <- function(...) {
