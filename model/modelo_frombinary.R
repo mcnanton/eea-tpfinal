@@ -106,7 +106,8 @@ lgbm_final <-
 
 full_dataset <- 
   recipe(AS ~ ., 
-         data = dataset)
+         data = dataset) %>% 
+  step_rm("AGI")
 
 best_params_manual <- 
   data.frame(
@@ -183,7 +184,8 @@ final_fit <- final_wflow %>%  fit(data = train_data_total[,-1])
 simple_explainer <- 
   explain_tidymodels(
     final_fit,
-    data = dplyr::select(train_data_total, -AS, -AGI),
+    data = dplyr::select(train_data_total, 
+                         -AGI),
     y = as.integer(train_data_total$AS),
     label = "simple lgbm explainer",
     verbose = FALSE
