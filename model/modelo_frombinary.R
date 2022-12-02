@@ -24,7 +24,8 @@ train_data_formula <-
   recipe(AS ~ ., data = train_data_total) %>%
   step_downsample(AS, 
                   under_ratio = 2, # El doble de AS=0 respecto a AS=1
-                  seed = 42)
+                  seed = 42) %>% 
+  step_rm("AGI")
 
 # Hiperparámetros----
 
@@ -136,7 +137,6 @@ testing %>%
   collect_metrics()
 
 
-
 predicciones <- 
   testing %>% 
   collect_predictions() 
@@ -177,13 +177,13 @@ final_wflow <-
   add_formula(AS ~ .) %>% 
   add_model(final_lgbm_model) 
 
-final_fit <- final_wflow %>%  fit(data = train_data_total)
+final_fit <- final_wflow %>%  fit(data = train_data_total[,-1])
 
 # Feature importance----
 simple_explainer <- 
   explain_tidymodels(
     final_fit,
-    data = dplyr::select(train_data_total, -AS),
+    data = dplyr::select(train_data_total, -AS, -AGI),
     y = as.integer(train_data_total$AS),
     label = "simple lgbm explainer",
     verbose = FALSE
@@ -192,13 +192,13 @@ simple_explainer <-
 simple_global_explainer <- 
   simple_explainer %>% 
   model_parts() #Esta función genera explicaciones globales
-
 # Esto no funciona y no entiendo por qué
 # Es este error https://www.statology.org/contrasts-applied-to-factors-with-2-or-more-levels/
 # Pero veo mas de 3 levels en todas las variables
+
 simple_breakdown <- predict_parts(
   explainer = simple_explainer, 
-  new_observation = test_data[12,] %>%  select(-AS))
+  new_observation = test_data[12,-1])
 
 # Función tomada de https://www.tmwr.org/explain.html
 ggplot_imp <- function(...) {
@@ -242,18 +242,15 @@ ggplot_imp(simple_global_explainer)
 
 
 
-
-
 # SHAP----
 # https://community.rstudio.com/t/shap-values-with-tidymodels/147217
 # https://www.tmwr.org/explain.html
 
-test_case <- test_data[1,]
 
 shap_values <-  
   predict_parts(
     explainer = simple_explainer, 
-    new_observation = test_case, 
+    new_observation = test_data[12,-1], 
     type = "shap",
     B = 20
   )
