@@ -3,6 +3,7 @@ library(dplyr)
 library(tidymodels)
 
 set.seed(1234)
+options(scipen=999) #desactivamos notación científica
 
 # Particiones----
 dataset <- read.delim("datasets/from_binary.txt",
@@ -39,12 +40,14 @@ params <- list(
 model <- lgb.train(
   params
   , data = dtrain
-  , nrounds = 300L
+  , nrounds = 300L #A que corresponde en el fit de tidymodels
   , verbose = -1L
 )
 
 tree_imp1 <- lgb.importance(model, percentage = TRUE)
 tree_imp2 <- lgb.importance(model, percentage = FALSE)
+
+test_cols <- colnames(X_test_matrix)
 
 prediccion <- predict(model,
                       data = X_test_matrix)
@@ -55,7 +58,12 @@ df_predicciones <- test_data %>%
   select(AS_predicha,
          AS_real)
 
+# Mandar CSV
+# Devuelve (n_samples, n_classes, n_features + 1)
 predict_contrib <- predict(model,
                            data=    X_test_matrix, 
                            #type = "contrib" 
-                           predcontrib = TRUE )
+                           predcontrib = TRUE)
+
+df_shap_values <- as.data.frame(predict_contrib) 
+colnames(df_shap_values) <- test_cols
