@@ -60,6 +60,7 @@ df_predicciones <- test_data %>%
 
 # Mandar CSV
 # Devuelve (n_samples, n_classes, n_features + 1)
+# https://stackoverflow.com/questions/58710152/lightgbm-predict-with-pred-contrib-true-for-multiclass-order-of-shap-values-in
 predict_contrib <- predict(model,
                            data=    X_test_matrix, 
                            #type = "contrib" 
@@ -67,3 +68,9 @@ predict_contrib <- predict(model,
 
 df_shap_values <- as.data.frame(predict_contrib) 
 colnames(df_shap_values) <- test_cols
+
+full_values <- df_predicciones %>% 
+  bind_cols(df_shap_values)
+
+write.csv(full_values, "preds_y_shap_values.csv")
+write.csv(df_shap_values, "shap_values.csv")
