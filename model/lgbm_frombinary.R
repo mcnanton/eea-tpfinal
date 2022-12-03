@@ -56,7 +56,6 @@ df_predicciones <- test_data %>%
          AS_real)
 
 predict_contrib <- predict(model,
-                           newdata=    X_test_matrix, 
-                           type = "contrib" 
-                           #predcontrib = TRUE DEPRECADO EN VERSION DE LGBM DE LA VM, no usar
-) 
+                           data=    X_test_matrix, 
+                           #type = "contrib" 
+                           predcontrib = TRUE )
