@@ -13,6 +13,11 @@ dataset_split <- initial_split(dataset, prop = 0.80, strata = AS)
 train_data_total <- training(dataset_split) 
 test_data <- testing(dataset_split) 
 
+X_test_matrix <- test_data %>% 
+  select(-AS,
+         -AGI) %>% 
+  as.matrix()
+
 
 X_matrix <- train_data_total %>% 
   select(-AS,
@@ -31,17 +36,27 @@ params <- list(
   learning_rate  = 0.0465
 )
 
-model <- lgb.cv(
+model <- lgb.train(
   params
   , data = dtrain
   , nrounds = 300L
   , verbose = -1L
-  , nfold = 5L
-  , stratified = TRUE
 )
 
 tree_imp1 <- lgb.importance(model, percentage = TRUE)
 tree_imp2 <- lgb.importance(model, percentage = FALSE)
 
-prediccion <- predict(fit,
-                      )
+prediccion <- predict(model,
+                      data = X_test_matrix)
+
+df_predicciones <- test_data %>% 
+  mutate(AS_predicha = prediccion,
+         AS_real = test_data$AS) %>% 
+  select(AS_predicha,
+         AS_real)
+
+predict_contrib <- predict(model,
+                           newdata=    X_test_matrix, 
+                           type = "contrib" 
+                           #predcontrib = TRUE DEPRECADO EN VERSION DE LGBM DE LA VM, no usar
+) 
