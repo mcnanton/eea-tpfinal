@@ -1,12 +1,13 @@
 library(lightgbm)
 library(dplyr)
 library(tidymodels)
+library(shapviz)
 
 set.seed(1234)
 options(scipen=999) #desactivamos notación científica
 
 # Particiones----
-dataset <- read.delim("datasets/from_binary.txt",
+dataset <- read.delim("./datasets/from_binary.txt",
                       sep = ",")
 
 dataset_split <- initial_split(dataset, prop = 0.80, strata = AS)
@@ -74,3 +75,22 @@ full_values <- df_predicciones %>%
 
 write.csv(full_values, "preds_y_shap_values.csv")
 write.csv(df_shap_values, "shap_values.csv")
+
+
+# Analizo SHAP values
+shp <- shapviz(model, X_pred = data.matrix(dia_small[x]), X = dia_small)
+shp <- shapviz(model, X_pred = X_test_matrix, X = dia_small)
+
+shp <- shapviz(model, X_test_matrix, X = X_test_matrix)
+
+sv_waterfall(shp, row_id = 50)
+
+# importance
+sv_importance(shp)
+
+# Beeswarm plot
+sv_importance(shp, kind = "beeswarm")
+
+# dependence
+sv_dependence(shp, v = "color", "auto")
+
